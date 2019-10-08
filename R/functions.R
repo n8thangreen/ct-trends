@@ -6,7 +6,7 @@
 #' @param sd_h Standard deviation of hazard
 #' @param beta_params List of beta parameters a, b
 #'
-#' @return List of h_symp, loglik, props
+#' @return List of all h_symp, loglik, props
 #' @export
 #'
 runMCMC <- function(ninter,
@@ -29,13 +29,13 @@ runMCMC <- function(ninter,
   for (i in seq_len(niter)) {
     
     h_star <- proposal(mean = chain$h_symp, sd_h)
-    pos_h <- (h_star > 0)
+    pos_h  <- (h_star > 0)
     
     if (pos_h)
       chain <- MHstep(beta_params, h_star, chain)
     
-    loglik[i]  <- chain$loglik
     h_symp[i]  <- chain$h_symp
+    loglik[i]  <- chain$loglik
     props[[i]] <- chain$props
   }
   
@@ -48,25 +48,18 @@ runMCMC <- function(ninter,
 
 #' Metropolis-Hastings sampler step
 #'
-#' @param beta_params 
-#' @param h_star 
-#' @param chain 
+#' @param beta_params List of beta parameters a, b
+#' @param h_star Proposal rate h
+#' @param chain List of current h_symp, loglik, props
 #'
-#' @return
+#' @return List of current h_symp, loglik, props
 #' @export
 #'
 MHstep <- function(beta_params,
                    h_star,
                    chain){
   
-  nperiods <- length(beta_params)
-  
-  h_symp <- chain$h_symp
-  loglik <- chain$loglik
-  props  <- chain$props
-  
   props_new <- prop_in_each_period(h_star)
-  
   all_pos <- all(props_new > 0)
   
   if (all_pos) {
@@ -74,21 +67,18 @@ MHstep <- function(beta_params,
     dbeta_new  <- beta_loglik(beta_params,
                               props_new)
     loglik_new <- sum(dbeta_new)
-    log_ratio  <- loglik_new - loglik
+    log_ratio  <- loglik_new - chain$loglik
     
     accept <- log(runit()) < log_ratio
     
     if (accept) {
-      h_symp <- h_star
-      loglik <- loglik_new
-      props  <- props_new
+      chain$h_symp <- h_star
+      chain$loglik <- loglik_new
+      chain$props  <- props_new
     }
   }
   
-  return(
-    list(h_symp = h_symp,
-         loglik = loglik,
-         props = props))
+  return(chain)
 }
 
 
